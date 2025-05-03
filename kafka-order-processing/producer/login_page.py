@@ -7,13 +7,14 @@ DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
     'password': '',  # default in XAMPP
-    'database': 'order_system'
+    'database': 'order_system_db'
 }
 
 def login():
     username = entry_user.get()
     password = entry_pass.get()
 
+    #alln this need to be happen inside the api.py file
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
