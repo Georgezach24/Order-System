@@ -4,8 +4,12 @@ import requests
 import json
 from kafka import KafkaConsumer
 import threading
+import hashlib
 
 current_user = None
+
+def hash_password(p):
+    return hashlib.sha256(p.encode()).hexdigest()
 
 def login():
     global current_user
@@ -15,7 +19,7 @@ def login():
     try:
         res = requests.post("http://localhost:5000/login", json={
             "username": current_user,
-            "password": password
+            "password": hash_password(password)
         })
         if res.status_code == 200:
             messagebox.showinfo("Login", "Waiting for login response...")

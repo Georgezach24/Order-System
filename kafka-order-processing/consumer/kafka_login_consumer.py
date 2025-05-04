@@ -1,7 +1,7 @@
 from kafka import KafkaConsumer, KafkaProducer
 import json
 import mysql.connector
-import hashlib
+
 
 DB_CONFIG = {
     'host': 'localhost',
@@ -23,8 +23,6 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-def hash_password(p):
-    return hashlib.sha256(p.encode()).hexdigest()
 
 def check_credentials(username, password):
     try:
@@ -34,7 +32,7 @@ def check_credentials(username, password):
         row = cursor.fetchone()
         if not row:
             return False
-        return hash_password(password) == row[0]
+        return password == row[0]
     except Exception as e:
         print("DB error:", e)
         return False

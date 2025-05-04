@@ -18,16 +18,6 @@ DB_CONFIG = {
     'database': 'order_system_db'
 }
 
-def check_user(username, password):
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, hashed))
-        return cursor.fetchone() is not None
-    except Exception as e:
-        print("DB error:", e)
-        return False
 
 @app.route('/login', methods=['POST'])
 def login():
