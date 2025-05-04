@@ -33,6 +33,7 @@ def login():
 
     return jsonify({"status": "pending"}), 200
  
+""""" We will implement later the order system with the following endpoints:
 
 @app.route('/create-order', methods=['POST'])
 def create_order():
@@ -51,6 +52,6 @@ def cancel_order():
     order = request.get_json()
     producer.send('order_cancellations', order)
     return jsonify({"status": "Order cancelled"}), 200
-
+"""
 if __name__ == '__main__':
     app.run(port=5000)
