@@ -1,60 +1,57 @@
 import tkinter as tk
 from tkinter import messagebox
-import mysql.connector
+import requests
+import json
+from kafka import KafkaConsumer
+import threading
 
-# Replace with your actual MySQL credentials
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',  # default in XAMPP
-    'database': 'order_system_db'
-}
+current_user = None
 
 def login():
-    username = entry_user.get()
+    global current_user
+    current_user = entry_user.get()
     password = entry_pass.get()
 
-    #alln this need to be happen inside the api.py file
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
-        result = cursor.fetchone()
-
-        if result:
-            messagebox.showinfo("Success", f"Welcome, {username}!")
-            root.destroy()
-            open_main_app(username)
+        res = requests.post("http://localhost:5000/login", json={
+            "username": current_user,
+            "password": password
+        })
+        if res.status_code == 200:
+            messagebox.showinfo("Login", "Waiting for login response...")
         else:
-            messagebox.showerror("Error", "Invalid username or password.")
+            messagebox.showerror("Error", "Login failed to send.")
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
-def open_main_app(username):
-    main = tk.Tk()
-    main.title("Order System Dashboard")
+def kafka_listener():
+    consumer = KafkaConsumer(
+        'login_responses',
+        bootstrap_servers='localhost:9092',
+        auto_offset_reset='latest',
+        group_id='gui',
+        value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+    )
+    for msg in consumer:
+        data = msg.value
+        if data['username'] == current_user:
+            if data['status'] == 'success':
+                messagebox.showinfo("Success", f"Welcome {current_user}")
+                break
+            else:
+                messagebox.showerror("Login Failed", "Invalid credentials")
+                break
 
-    tk.Label(main, text=f"Logged in as: {username}", font=('Arial', 12)).pack(pady=10)
+threading.Thread(target=kafka_listener, daemon=True).start()
 
-    tk.Button(main, text="Create Order", width=20).pack(pady=5)
-    tk.Button(main, text="Update Order", width=20).pack(pady=5)
-    tk.Button(main, text="Cancel Order", width=20).pack(pady=5)
-
-    main.mainloop()
-
-# Login window
+# GUI setup
 root = tk.Tk()
 root.title("Login")
-
 tk.Label(root, text="Username:").pack()
 entry_user = tk.Entry(root)
 entry_user.pack()
-
 tk.Label(root, text="Password:").pack()
-entry_pass = tk.Entry(root, show="*")
+entry_pass = tk.Entry(root, show='*')
 entry_pass.pack()
-
-tk.Button(root, text="Login", command=login).pack(pady=10)
-
+tk.Button(root, text="Login", command=login).pack()
 root.mainloop()

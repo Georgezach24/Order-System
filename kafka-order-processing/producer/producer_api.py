@@ -35,27 +35,14 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    success = check_user(username, password)
-    
     event = {
-        "event": "login_attempt",
         "username": username,
-        "status": "success" if success else "failure"
+        "password": password
     }
-    producer.send('login_events', event)
+    producer.send('login_requests', event)
 
-    if success:
-        return jsonify({"status": "ok"}), 200
-    return jsonify({"status": "unauthorized"}), 401
-
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    if users_db.get(username) == password:
-        return jsonify({"status": "ok"}), 200
-    return jsonify({"status": "unauthorized"}), 401
+    return jsonify({"status": "pending"}), 200
+ 
 
 @app.route('/create-order', methods=['POST'])
 def create_order():

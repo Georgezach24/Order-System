@@ -1,0 +1,56 @@
+from kafka import KafkaConsumer, KafkaProducer
+import json
+import mysql.connector
+import hashlib
+
+DB_CONFIG = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',
+    'database': 'order_system_db'
+}
+
+consumer = KafkaConsumer(
+    'login_requests',
+    bootstrap_servers='localhost:9092',
+    auto_offset_reset='earliest',
+    group_id='login-checker',
+    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+)
+
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+def hash_password(p):
+    return hashlib.sha256(p.encode()).hexdigest()
+
+def check_credentials(username, password):
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password FROM users WHERE username=%s", (username,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        return hash_password(password) == row[0]
+    except Exception as e:
+        print("DB error:", e)
+        return False
+
+print("Login processor listening on Kafka...")
+
+for msg in consumer:
+    data = msg.value
+    username = data.get('username')
+    password = data.get('password')
+
+    result = check_credentials(username, password)
+    status = "success" if result else "failure"
+
+    producer.send('login_responses', {
+        "username": username,
+        "status": status
+    })
+    print(f"Checked login for {username} → {status}")
