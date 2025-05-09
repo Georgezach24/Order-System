@@ -145,6 +145,33 @@ def update_order_window():
 def view_my_orders():
     producer.send('order_query_requests', {"user": current_user})
     messagebox.showinfo("Info", "Requesting your orders...")
+    
+def cancel_order_window():
+    win = tk.Toplevel()
+    win.title("Cancel Order")
+
+    tk.Label(win, text="Order ID to Cancel").pack()
+    order_id_entry = tk.Entry(win, width=30)
+    order_id_entry.pack()
+
+    def submit_cancel():
+        try:
+            order_id = int(order_id_entry.get())
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Order ID must be a number.")
+            return
+
+        cancel_data = {
+            "user": current_user,
+            "order_id": order_id
+        }
+
+        producer.send('order_cancellations', cancel_data)
+        messagebox.showinfo("Cancelled", f"Cancel request for order #{order_id} sent.")
+        win.destroy()
+
+    tk.Button(win, text="Submit Cancellation", command=submit_cancel).pack(pady=10)
+
 
 # --- Show Orders List Window ---
 def show_order_window(orders):
@@ -184,7 +211,7 @@ def open_main_app(username):
     tk.Label(dash, text=f"Logged in as: {username}", font=("Arial", 14)).pack(pady=10)
     tk.Button(dash, text="Create Order", width=25, command=create_order_window).pack(pady=5)
     tk.Button(dash, text="Update Order", width=25, command=update_order_window).pack(pady=5)
-    tk.Button(dash, text="Cancel Order", width=25, command=lambda: messagebox.showinfo("Coming Soon", "Cancel feature coming")).pack(pady=5)
+    tk.Button(dash, text="Cancel Order", width=25, command=cancel_order_window).pack(pady=5)
     tk.Button(dash, text="View My Orders", width=25, command=view_my_orders).pack(pady=5)
 
 # --- Login window setup ---

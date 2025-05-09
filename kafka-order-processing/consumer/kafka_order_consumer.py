@@ -10,7 +10,7 @@ DB_CONFIG = {
 }
 
 consumer = KafkaConsumer(
-    'orders', 'order_updates', 'order_query_requests',
+    'orders', 'order_updates', 'order_query_requests', 'order_cancellations',
     bootstrap_servers='localhost:9092',
     auto_offset_reset='earliest',
     group_id='order-handler',
@@ -22,7 +22,7 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-print("Consumer listening to: orders, order_updates, order_query_requests")
+print("🟢 Consumer listening on: orders, order_updates, order_query_requests, order_cancellations")
 
 def insert_order(order):
     try:
@@ -47,16 +47,12 @@ def update_order(order):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT * FROM orders WHERE order_id = %s AND user = %s
-        """, (order['order_id'], order['user']))
+        cursor.execute("SELECT * FROM orders WHERE order_id = %s AND user = %s", (order['order_id'], order['user']))
         if not cursor.fetchone():
             print(f"⚠️ Order #{order['order_id']} not found for {order['user']}")
             return
         cursor.execute("""
-            UPDATE orders
-            SET dt = %s, tm = %s, description = %s
-            WHERE order_id = %s
+            UPDATE orders SET dt = %s, tm = %s, description = %s WHERE order_id = %s
         """, (
             order['dt'],
             order['tm'],
@@ -68,22 +64,34 @@ def update_order(order):
     except Exception as e:
         print("❌ Update Error:", e)
 
+def cancel_order(order):
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM orders WHERE order_id = %s AND user = %s", (order['order_id'], order['user']))
+        if not cursor.fetchone():
+            print(f"⚠️ Cancel failed: Order #{order['order_id']} not found or unauthorized for {order['user']}")
+            return
+        cursor.execute("DELETE FROM orders WHERE order_id = %s", (order['order_id'],))
+        conn.commit()
+        print(f"🗑️ Canceled order #{order['order_id']} for {order['user']}")
+    except Exception as e:
+        print("❌ Cancel Error:", e)
+
 def fetch_user_orders(user):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT order_id, dt, tm, description FROM orders WHERE user = %s
-        """, (user,))
-        orders = cursor.fetchall()
+        cursor.execute("SELECT order_id, dt, tm, description FROM orders WHERE user = %s", (user,))
+        rows = cursor.fetchall()
         return [
             {
                 "order_id": row[0],
                 "dt": row[1].strftime('%Y-%m-%d'),
-                "tm": str(row[2]),  
+                "tm": str(row[2]),
                 "description": row[3]
             }
-            for row in orders
+            for row in rows
         ]
     except Exception as e:
         print("❌ Query Error:", e)
@@ -95,16 +103,13 @@ for msg in consumer:
 
     if topic == 'orders':
         insert_order(data)
-
     elif topic == 'order_updates':
         update_order(data)
-
+    elif topic == 'order_cancellations':
+        cancel_order(data)
     elif topic == 'order_query_requests':
-        user = data.get('user')
-        print(f"📨 Order history request from {user}")
-        result = fetch_user_orders(user)
-        response = {
-            "user": user,
+        result = fetch_user_orders(data['user'])
+        producer.send('order_query_responses', {
+            "user": data['user'],
             "orders": result
-        }
-        producer.send('order_query_responses', response)
+        })
