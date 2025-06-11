@@ -78,29 +78,37 @@ def cancel_order(order):
     except Exception as e:
         print("Cancel Error:", e)
 
-def fetch_user_orders(user):
+def fetch_user_orders(user=None, is_admin=False):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("SELECT order_id, dt, tm, description FROM orders WHERE user = %s", (user,))
-        rows = cursor.fetchall()
-
-        if not rows:
-            print(f"No orders found for user {user}")
-            return []
-
-        orders = [
-            {
-                "order_id": row[0],
-                "dt": row[1].strftime('%Y-%m-%d'),
-                "tm": str(row[2]),
-                "description": row[3]
-            }
-            for row in rows
-        ]
-        print(f"Fetched {len(orders)} orders for {user}")
-        return orders
-
+        if is_admin and (user is None or user == "*"):
+            cursor.execute("SELECT user, order_id, dt, tm, description FROM orders")
+            rows = cursor.fetchall()
+            print(f"Admin fetched all orders")
+            return [
+                {
+                    "user": row[0],
+                    "order_id": row[1],
+                    "dt": row[2].strftime('%Y-%m-%d'),
+                    "tm": str(row[3]),
+                    "description": row[4]
+                }
+                for row in rows
+            ]
+        else:
+            cursor.execute("SELECT order_id, dt, tm, description FROM orders WHERE user = %s", (user,))
+            rows = cursor.fetchall()
+            print(f"Fetched orders for user {user}")
+            return [
+                {
+                    "order_id": row[0],
+                    "dt": row[1].strftime('%Y-%m-%d'),
+                    "tm": str(row[2]),
+                    "description": row[3]
+                }
+                for row in rows
+            ]
     except Exception as e:
         print("Query Error:", e)
         return []
@@ -116,8 +124,11 @@ for msg in consumer:
     elif topic == 'order_cancellations':
         cancel_order(data)
     elif topic == 'order_query_requests':
-        result = fetch_user_orders(data['user'])
+        result = fetch_user_orders(
+            user=data.get('user'),
+            is_admin=data.get('isAdmin', False)
+        )
         producer.send('order_query_responses', {
-            "user": data['user'],
+            "user": data.get('user'),
             "orders": result
         })

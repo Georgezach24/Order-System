@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from kafka import KafkaProducer
 import mysql.connector
 import json
+import hashlib
 
 app = Flask(__name__)
 
@@ -22,19 +23,17 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    session_id = data.get('session_id')  # <-- Required for client-instance binding
+    session_id = data.get('session_id')
 
     if not session_id:
         return jsonify({"error": "Missing session_id"}), 400
 
-    # Pass session_id to Kafka so it returns in response
     event = {
         "username": username,
         "password": password,
         "session_id": session_id
     }
     producer.send('login_requests', event)
-
     return jsonify({"status": "pending"}), 200
 
 @app.route('/create-order', methods=['POST'])
@@ -64,6 +63,20 @@ def view_orders():
 
     producer.send('order_query_requests', {"user": username})
     return jsonify({"status": "Order request sent"}), 200
+
+@app.route('/register-user', methods=['POST'])
+def register_user():
+    data = request.get_json()
+    if not data.get('username') or not data.get('password'):
+        return jsonify({"error": "Missing username or password"}), 400
+
+    event = {
+        "username": data['username'],
+        "password": data['password'],  # Already hashed by client
+        "isAdmin": data.get('isAdmin', False)
+    }
+    producer.send('user_registration_requests', event)
+    return jsonify({"status": "Registration request sent"}), 200
 
 if __name__ == '__main__':
     app.run(port=5000)

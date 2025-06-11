@@ -26,14 +26,14 @@ def check_credentials(username, password):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("SELECT password FROM users WHERE username=%s", (username,))
+        cursor.execute("SELECT password, isAdmin FROM users WHERE username=%s", (username,))
         row = cursor.fetchone()
         if not row:
-            return False
-        return password == row[0]
+            return False, False
+        return password == row[0], bool(row[1])
     except Exception as e:
         print("DB error:", e)
-        return False
+        return False, False
 
 print("Login processor listening on Kafka...")
 
@@ -43,13 +43,14 @@ for msg in consumer:
     password = data.get('password')
     session_id = data.get('session_id')
 
-    result = check_credentials(username, password)
+    result, is_admin = check_credentials(username, password)
     status = "success" if result else "failure"
 
     producer.send('login_responses', {
         "username": username,
         "status": status,
-        "session_id": session_id  # <-- include session ID
+        "isAdmin": is_admin,
+        "session_id": session_id
     })
 
-    print(f"Checked login for {username} → {status} (session {session_id})")
+    print(f"Checked login for {username} → {status}, Admin={is_admin} (session {session_id})")
