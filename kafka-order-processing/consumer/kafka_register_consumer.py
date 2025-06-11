@@ -2,6 +2,7 @@ from kafka import KafkaConsumer, KafkaProducer
 import json
 import mysql.connector
 
+# --- Database Configuration ---
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
@@ -9,6 +10,8 @@ DB_CONFIG = {
     'database': 'order_system_db'
 }
 
+# --- Kafka Consumer Setup ---
+# Listens to the 'user_registration_requests' topic and processes each message
 consumer = KafkaConsumer(
     'user_registration_requests',
     bootstrap_servers='localhost:9092',
@@ -19,6 +22,8 @@ consumer = KafkaConsumer(
 
 print("Listening for registration requests...")
 
+# --- Message Processing Loop ---
+# For every registration message received, try inserting a new user into MySQL
 for msg in consumer:
     data = msg.value
     try:
@@ -31,6 +36,8 @@ for msg in consumer:
         conn.commit()
         print(f"Registered new user: {data['username']} (Admin: {data.get('isAdmin', False)})")
     except mysql.connector.IntegrityError:
+        # Likely a duplicate username (violates unique constraint)
         print(f"User {data['username']} already exists.")
     except Exception as e:
+        # Catch-all for other database or runtime issues
         print("Registration Error:", e)

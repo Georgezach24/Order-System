@@ -10,20 +10,23 @@ import uuid
 from kafka import KafkaProducer, KafkaConsumer
 import queue
 
-# --- Globals ---
+# --- Global variables ---
 current_user = None
 current_user_is_admin = False
 order_response_queue = queue.Queue()
-session_id = str(uuid.uuid4())
+session_id = str(uuid.uuid4())  # Unique ID to identify this session with Kafka
 
+# Hash a password using SHA-256
 def hash_password(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
+# Initialize Kafka producer for sending messages
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
+# Listen for login responses on Kafka and handle them in the GUI
 def kafka_login_listener():
     consumer = KafkaConsumer(
         'login_responses',
@@ -40,6 +43,7 @@ def kafka_login_listener():
             else:
                 root.after(0, lambda: messagebox.showerror("Login Failed", "Invalid credentials"))
 
+# Listen for order responses and queue them for display
 def kafka_order_response_listener():
     consumer = KafkaConsumer(
         'order_query_responses',
@@ -52,6 +56,7 @@ def kafka_order_response_listener():
         data = msg.value
         order_response_queue.put(data['orders'])
 
+# Handle successful login, store user info, and open main app window
 def handle_login_success(username, is_admin):
     global current_user, current_user_is_admin
     current_user = username
@@ -60,6 +65,7 @@ def handle_login_success(username, is_admin):
     root.withdraw()
     open_main_app(username)
 
+# Send login request to backend
 def login():
     global current_user
     current_user = entry_user.get()
@@ -77,10 +83,12 @@ def login():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+# GUI window for creating a new order
 def create_order_window():
     win = tk.Toplevel()
     win.title("Create Order")
 
+    # UI fields for order input
     user_label = tk.Label(win, text="Username (optional for admin)")
     user_label.pack()
     user_entry = tk.Entry(win, width=30)
@@ -91,6 +99,7 @@ def create_order_window():
     desc_entry = tk.Entry(win, width=40)
     desc_entry.pack()
 
+    # Submit the order to backend
     def submit_order():
         username = user_entry.get() if current_user_is_admin else current_user
         description = desc_entry.get()
@@ -114,10 +123,12 @@ def create_order_window():
 
     tk.Button(win, text="Submit Order", command=submit_order).pack(pady=10)
 
+# GUI for updating an existing order
 def update_order_window():
     win = tk.Toplevel()
     win.title("Update Order")
 
+    # UI for selecting order and new description
     tk.Label(win, text="Order ID to Update").pack()
     order_id_entry = tk.Entry(win, width=30)
     order_id_entry.pack()
@@ -132,6 +143,7 @@ def update_order_window():
     desc_entry = tk.Entry(win, width=40)
     desc_entry.pack()
 
+    # Submit update request
     def submit_update():
         try:
             order_id = int(order_id_entry.get())
@@ -163,10 +175,12 @@ def update_order_window():
 
     tk.Button(win, text="Submit Update", command=submit_update).pack(pady=10)
 
+# GUI for canceling an order
 def cancel_order_window():
     win = tk.Toplevel()
     win.title("Cancel Order")
 
+    # UI for entering order ID
     tk.Label(win, text="Order ID to Cancel").pack()
     order_id_entry = tk.Entry(win, width=30)
     order_id_entry.pack()
@@ -177,6 +191,7 @@ def cancel_order_window():
     user_entry.insert(0, current_user)
     user_entry.pack()
 
+    # Submit cancellation request
     def submit_cancel():
         try:
             order_id = int(order_id_entry.get())
@@ -203,6 +218,7 @@ def cancel_order_window():
 
     tk.Button(win, text="Submit Cancellation", command=submit_cancel).pack(pady=10)
 
+# Request order list from backend
 def view_my_orders():
     try:
         request_data = {
@@ -217,6 +233,7 @@ def view_my_orders():
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
+# GUI for user registration (admin-only)
 def register_user_window():
     win = tk.Toplevel()
     win.title("Register New User")
@@ -232,6 +249,7 @@ def register_user_window():
     is_admin_var = tk.BooleanVar()
     tk.Checkbutton(win, text="Is Admin", variable=is_admin_var).pack()
 
+    # Send registration request to backend
     def submit_registration():
         username = new_user_entry.get()
         password = new_pass_entry.get()
@@ -253,6 +271,7 @@ def register_user_window():
 
     tk.Button(win, text="Register", command=submit_registration).pack(pady=10)
 
+# GUI for displaying a list of orders
 def show_order_window(orders):
     win = tk.Toplevel()
     win.title("Orders")
@@ -273,6 +292,7 @@ def show_order_window(orders):
             line = f"{user_part}Order #{order['order_id']} | {order['dt']} {order['tm']} | {order['description']}"
             listbox.insert(tk.END, line)
 
+# Periodically check for new order responses from Kafka
 def check_for_order_response():
     try:
         orders = order_response_queue.get_nowait()
@@ -281,6 +301,7 @@ def check_for_order_response():
         pass
     root.after(500, check_for_order_response)
 
+# Main dashboard GUI after login
 def open_main_app(username):
     dash = tk.Toplevel()
     dash.title("Order Dashboard")
@@ -295,7 +316,7 @@ def open_main_app(username):
     if current_user_is_admin:
         tk.Button(dash, text="Register User", width=25, command=register_user_window).pack(pady=5)
 
-# --- Login window setup ---
+# --- Initial Login Window Setup ---
 root = tk.Tk()
 root.title("Login")
 root.geometry("300x200")
@@ -310,7 +331,7 @@ entry_pass.pack()
 
 tk.Button(root, text="Login", command=login).pack(pady=10)
 
-# --- Start Kafka listeners and UI loop ---
+# --- Start background listeners and GUI loop ---
 threading.Thread(target=kafka_login_listener, daemon=True).start()
 threading.Thread(target=kafka_order_response_listener, daemon=True).start()
 check_for_order_response()
