@@ -11,7 +11,7 @@ app = Flask(__name__)
 # --- Kafka producer setup ---
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',  # Kafka broker address
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')  # Serialize Python dicts as JSON
+    value_serializer=lambda v: json.dumps(v).encode('utf-8') # Serialize Python dicts as JSON
 )
 
 # --- Database config (used optionally if DB check is added) ---
@@ -58,6 +58,16 @@ def cancel_order():
     order = request.get_json()
     producer.send('order_cancellations', order)  # Send cancellation to 'order_cancellations' topic
     return jsonify({"status": "Order cancelled"}), 200
+
+@app.route('/view_orders', methods=['POST'])
+def view_orders():
+    data = request.get_json()
+    username = data.get('user')
+    if not username:
+        return jsonify({"error": "Missing 'user'"}), 400
+
+    producer.send('order_query_requests', {"user": username})
+    return jsonify({"status": "Order request sent"}), 200
 
 # --- Start the Flask server on port 5000 ---
 if __name__ == '__main__':

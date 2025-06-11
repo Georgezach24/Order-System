@@ -96,8 +96,14 @@ def create_order_window():
             "tm": now.strftime("%H:%M:%S"),
             "description": description
         }
-        producer.send('orders', order)
-        messagebox.showinfo("Success", "Order sent to Kafka.")
+        try:
+            res = requests.post("http://localhost:5000/create-order", json=order)
+            if res.status_code == 200:
+                messagebox.showinfo("Success", "Order sent to server.")
+            else:
+                messagebox.showerror("Error", "Order creation failed.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         win.destroy()
 
     tk.Button(win, text="Submit Order", command=submit_order).pack(pady=10)
@@ -133,16 +139,28 @@ def update_order_window():
             "description": description
         }
 
-        producer.send('order_updates', order_update)
-        messagebox.showinfo("Success", "Order update sent to Kafka.")
+        try:
+            res = requests.post("http://localhost:5000/update-order", json=order_update)
+            if res.status_code == 200:
+                messagebox.showinfo("Success", "Order update sent to server.")
+            else:
+                messagebox.showerror("Error", "Update failed.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         win.destroy()
 
     tk.Button(win, text="Submit Update", command=submit_update).pack(pady=10)
 
 # --- View User Orders ---
 def view_my_orders():
-    producer.send('order_query_requests', {"user": current_user})
-    messagebox.showinfo("Info", "Requesting your orders...")
+    try:
+        res = requests.post("http://localhost:5000/view_orders", json={"user": current_user})
+        if res.status_code == 200:
+            messagebox.showinfo("Info", "Requesting your orders...")
+        else:
+            messagebox.showerror("Error", "Failed to request orders.")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
     
 def cancel_order_window():
     win = tk.Toplevel()
@@ -164,8 +182,14 @@ def cancel_order_window():
             "order_id": order_id
         }
 
-        producer.send('order_cancellations', cancel_data)
-        messagebox.showinfo("Cancelled", f"Cancel request for order #{order_id} sent.")
+        try:
+            res = requests.post("http://localhost:5000/cancel-order", json=cancel_data)
+            if res.status_code == 200:
+                messagebox.showinfo("Cancelled", f"Cancel request for order #{order_id} sent.")
+            else:
+                messagebox.showerror("Error", "Cancellation failed.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         win.destroy()
 
     tk.Button(win, text="Submit Cancellation", command=submit_cancel).pack(pady=10)
