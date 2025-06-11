@@ -13,17 +13,17 @@ DB_CONFIG = {
 
 # --- Kafka consumer for login requests ---
 consumer = KafkaConsumer(
-    'login_requests',                      # Topic to consume login attempts from
-    bootstrap_servers='localhost:9092',    # Kafka broker
-    auto_offset_reset='earliest',          # Read from beginning if no offset
-    group_id='login-checker',              # Consumer group ID
-    value_deserializer=lambda m: json.loads(m.decode('utf-8'))  # Convert JSON to dict
+    'login_requests',                      
+    bootstrap_servers='localhost:9092',    
+    auto_offset_reset='earliest',          
+    group_id='login-checker',              
+    value_deserializer=lambda m: json.loads(m.decode('utf-8')) 
 )
 
 # --- Kafka producer for login responses ---
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')  # Convert dict to JSON bytes
+    value_serializer=lambda v: json.dumps(v).encode('utf-8') 
 )
 
 # --- Function to check credentials against the MySQL users table ---

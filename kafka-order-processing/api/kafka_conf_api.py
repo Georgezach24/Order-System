@@ -10,8 +10,8 @@ app = Flask(__name__)
 
 # --- Kafka producer setup ---
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',  # Kafka broker address
-    value_serializer=lambda v: json.dumps(v).encode('utf-8') # Serialize Python dicts as JSON
+    bootstrap_servers='localhost:9092', 
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
 # --- Database config (used optionally if DB check is added) ---
@@ -36,27 +36,27 @@ def login():
     }
     producer.send('login_requests', event)
 
-    return jsonify({"status": "pending"}), 200  # Client waits for login response via Kafka
+    return jsonify({"status": "pending"}), 200  
 
 # --- Route to handle new order creation ---
 @app.route('/create-order', methods=['POST'])
 def create_order():
     order = request.get_json()
-    producer.send('orders', order)  # Send order to 'orders' topic
+    producer.send('orders', order)  
     return jsonify({"status": "Order created"}), 200
 
 # --- Route to handle order updates ---
 @app.route('/update-order', methods=['POST'])
 def update_order():
     order = request.get_json()
-    producer.send('order_updates', order)  # Send update request to 'order_updates' topic
+    producer.send('order_updates', order)  
     return jsonify({"status": "Order updated"}), 200
 
 # --- Route to handle order cancellations ---
 @app.route('/cancel-order', methods=['POST'])
 def cancel_order():
     order = request.get_json()
-    producer.send('order_cancellations', order)  # Send cancellation to 'order_cancellations' topic
+    producer.send('order_cancellations', order) 
     return jsonify({"status": "Order cancelled"}), 200
 
 @app.route('/view_orders', methods=['POST'])
