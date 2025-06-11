@@ -6,12 +6,14 @@ import requests
 import json
 import datetime
 import random
+import uuid
 from kafka import KafkaProducer, KafkaConsumer
 import queue
 
 # --- Globals ---
 current_user = None
 order_response_queue = queue.Queue()
+session_id = str(uuid.uuid4())  # Unique session for each GUI instance
 
 # --- Hash password before sending to backend ---
 def hash_password(p):
@@ -29,14 +31,14 @@ def kafka_login_listener():
         'login_responses',
         bootstrap_servers='localhost:9092',
         auto_offset_reset='latest',
-        group_id='gui-login-listener',
+        group_id=f'gui-login-listener-{session_id}',  # Unique group per GUI instance
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
     for msg in consumer:
         data = msg.value
-        if data['username'] == current_user:
+        if data.get('session_id') == session_id:  # Only process messages for this session
             if data['status'] == 'success':
-                root.after(0, lambda: handle_login_success(current_user))
+                root.after(0, lambda: handle_login_success(data['username']))
             else:
                 root.after(0, lambda: messagebox.showerror("Login Failed", "Invalid credentials"))
 
@@ -46,7 +48,7 @@ def kafka_order_response_listener():
         'order_query_responses',
         bootstrap_servers='localhost:9092',
         auto_offset_reset='latest',
-        group_id='order-query-listener',
+        group_id=f'order-query-listener-{session_id}',  # Unique group per GUI instance
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
     for msg in consumer:
@@ -68,7 +70,8 @@ def login():
     try:
         res = requests.post("http://localhost:5000/login", json={
             "username": current_user,
-            "password": hash_password(password)
+            "password": hash_password(password),
+            "session_id": session_id  # Include session ID
         })
         if res.status_code == 200:
             messagebox.showinfo("Login", "Login request sent.\nWaiting for response...")
@@ -161,7 +164,7 @@ def view_my_orders():
             messagebox.showerror("Error", "Failed to request orders.")
     except Exception as e:
         messagebox.showerror("Error", str(e))
-    
+
 def cancel_order_window():
     win = tk.Toplevel()
     win.title("Cancel Order")
@@ -193,7 +196,6 @@ def cancel_order_window():
         win.destroy()
 
     tk.Button(win, text="Submit Cancellation", command=submit_cancel).pack(pady=10)
-
 
 # --- Show Orders List Window ---
 def show_order_window(orders):
