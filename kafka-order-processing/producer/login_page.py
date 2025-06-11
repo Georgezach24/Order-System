@@ -31,12 +31,12 @@ def kafka_login_listener():
         'login_responses',
         bootstrap_servers='localhost:9092',
         auto_offset_reset='latest',
-        group_id=f'gui-login-listener-{session_id}',  # Unique group per GUI instance
+        group_id=f'gui-login-listener-{session_id}', 
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
     for msg in consumer:
         data = msg.value
-        if data.get('session_id') == session_id:  # Only process messages for this session
+        if data.get('session_id') == session_id:  
             if data['status'] == 'success':
                 root.after(0, lambda: handle_login_success(data['username']))
             else:
@@ -48,7 +48,7 @@ def kafka_order_response_listener():
         'order_query_responses',
         bootstrap_servers='localhost:9092',
         auto_offset_reset='latest',
-        group_id=f'order-query-listener-{session_id}',  # Unique group per GUI instance
+        group_id=f'order-query-listener-{session_id}',  
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
     for msg in consumer:
@@ -74,9 +74,9 @@ def login():
             "session_id": session_id  # Include session ID
         })
         if res.status_code == 200:
-            messagebox.showinfo("Login", "Login request sent.\nWaiting for response...")
+            print("Login request sent to server.")
         else:
-            messagebox.showerror("Error", "Login request failed.")
+            print("Login request failed.")
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
@@ -102,9 +102,9 @@ def create_order_window():
         try:
             res = requests.post("http://localhost:5000/create-order", json=order)
             if res.status_code == 200:
-                messagebox.showinfo("Success", "Order sent to server.")
+                print(f"Request order #{order['order_id']} created for {current_user}.")
             else:
-                messagebox.showerror("Error", "Order creation failed.")
+                print("Request order creation failed.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
         win.destroy()
@@ -145,9 +145,9 @@ def update_order_window():
         try:
             res = requests.post("http://localhost:5000/update-order", json=order_update)
             if res.status_code == 200:
-                messagebox.showinfo("Success", "Order update sent to server.")
+                print(f"Requested order #{order_id} update for {current_user}.")
             else:
-                messagebox.showerror("Error", "Update failed.")
+                print("Requested order update failed.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
         win.destroy()
@@ -159,9 +159,9 @@ def view_my_orders():
     try:
         res = requests.post("http://localhost:5000/view_orders", json={"user": current_user})
         if res.status_code == 200:
-            messagebox.showinfo("Info", "Requesting your orders...")
+            print("Requesting orders from server...")
         else:
-            messagebox.showerror("Error", "Failed to request orders.")
+            print("Failed to request orders.")
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
@@ -188,9 +188,9 @@ def cancel_order_window():
         try:
             res = requests.post("http://localhost:5000/cancel-order", json=cancel_data)
             if res.status_code == 200:
-                messagebox.showinfo("Cancelled", f"Cancel request for order #{order_id} sent.")
+                print(f"Order #{order_id} cancellation requested for {current_user}.")
             else:
-                messagebox.showerror("Error", "Cancellation failed.")
+                print("Order cancellation failed.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
         win.destroy()
