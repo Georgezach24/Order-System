@@ -1,6 +1,0 @@
-Producers have the main frontent apps for the user to interact with the system.
-They are responsible for sending messages to the Kafka topic.
-They also handle errors and retries.
-They are the main entry point for the user to interact with the system.
-
-

@@ -1,2 +1,0 @@
-Consumer connects to the database and consumes messages from the Kafka topic
-and processes them. It also handles errors and retries.

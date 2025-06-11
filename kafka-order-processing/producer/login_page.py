@@ -37,10 +37,8 @@ def kafka_login_listener():
         if data['username'] == current_user:
             if data['status'] == 'success':
                 root.after(0, lambda: handle_login_success(current_user))
-                break
             else:
                 root.after(0, lambda: messagebox.showerror("Login Failed", "Invalid credentials"))
-                break
 
 # --- Kafka Consumer for user order query responses ---
 def kafka_order_response_listener():
