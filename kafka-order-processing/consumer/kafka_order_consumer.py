@@ -26,13 +26,13 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-print("Consumer listening on Kafka...")
+print("Order handler consumer listening on Kafka...")
 
 # --- Order Operation Handlers ---
 
-# Inserts a new order into the database
 def insert_order(order):
     try:
+        print(f"Inserting order: {order}")
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         cursor.execute("""
@@ -50,9 +50,9 @@ def insert_order(order):
     except Exception as e:
         print("Insert Error:", e)
 
-# Updates an existing order (only if the order and user match)
 def update_order(order):
     try:
+        print(f"Updating order: {order}")
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM orders WHERE order_id = %s AND user = %s", (order['order_id'], order['user']))
@@ -72,9 +72,9 @@ def update_order(order):
     except Exception as e:
         print("Update Error:", e)
 
-# Deletes an order (requires matching user and order ID)
 def cancel_order(order):
     try:
+        print(f"Cancelling order: {order}")
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM orders WHERE order_id = %s AND user = %s", (order['order_id'], order['user']))
@@ -87,17 +87,16 @@ def cancel_order(order):
     except Exception as e:
         print("Cancel Error:", e)
 
-# Retrieves orders from the database, either for a specific user or all (if admin)
 def fetch_user_orders(user=None, is_admin=False):
     try:
+        print(f"Fetching orders. User: {user}, Is admin: {is_admin}")
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         if is_admin and (user is None or user == "*"):
-            # Admin request: fetch all orders
             cursor.execute("SELECT user, order_id, dt, tm, description FROM orders")
             rows = cursor.fetchall()
-            print(f"Admin fetched all orders")
+            print("Admin fetched all orders")
             return [
                 {
                     "user": row[0],
@@ -109,7 +108,6 @@ def fetch_user_orders(user=None, is_admin=False):
                 for row in rows
             ]
         else:
-            # User request: fetch only their own orders
             cursor.execute("SELECT order_id, dt, tm, description FROM orders WHERE user = %s", (user,))
             rows = cursor.fetchall()
             print(f"Fetched orders for user {user}")
@@ -127,10 +125,10 @@ def fetch_user_orders(user=None, is_admin=False):
         return []
 
 # --- Main Kafka Message Processing Loop ---
-# Routes each message to the appropriate handler based on topic
 for msg in consumer:
     topic = msg.topic
     data = msg.value
+    print(f"Received message from topic '{topic}': {data}")
 
     if topic == 'orders':
         insert_order(data)
@@ -147,3 +145,4 @@ for msg in consumer:
             "user": data.get('user'),
             "orders": result
         })
+        print(f"Sent order query response for user {data.get('user')}")

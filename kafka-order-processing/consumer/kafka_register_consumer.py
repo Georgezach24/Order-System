@@ -12,6 +12,8 @@ DB_CONFIG = {
 
 # --- Kafka Consumer Setup ---
 # Listens to the 'user_registration_requests' topic and processes each message
+print("Starting user registration consumer...")
+
 consumer = KafkaConsumer(
     'user_registration_requests',
     bootstrap_servers='localhost:9092',
@@ -20,12 +22,13 @@ consumer = KafkaConsumer(
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
-print("Listening for registration requests...")
+print("Connected to Kafka. Listening for registration requests...")
 
 # --- Message Processing Loop ---
 # For every registration message received, try inserting a new user into MySQL
 for msg in consumer:
     data = msg.value
+    print("Received registration request:", data)
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -36,8 +39,6 @@ for msg in consumer:
         conn.commit()
         print(f"Registered new user: {data['username']} (Admin: {data.get('isAdmin', False)})")
     except mysql.connector.IntegrityError:
-        # Likely a duplicate username (violates unique constraint)
         print(f"User {data['username']} already exists.")
     except Exception as e:
-        # Catch-all for other database or runtime issues
         print("Registration Error:", e)
